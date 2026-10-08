@@ -254,6 +254,11 @@ html[data-theme=dark] .rk.g2{background:#55627a;color:#fff}
 .hist .qa .ic{font-size:12px}
 @media(max-width:620px){.quad,.cmp{grid-template-columns:1fr}.badges{grid-template-columns:repeat(4,minmax(0,1fr))}.wbar{grid-template-columns:104px 1fr 40px}.thb{width:34px;height:34px}}
 @media(prefers-reduced-motion:reduce){#view.fade>*,.flame.on{animation:none}}
+.pt.sv{background:var(--blbg);color:var(--bld);border:1.5px solid var(--bl)}
+.modal.solid{background:rgba(13,20,31,.86);backdrop-filter:blur(6px)}.qarea.blur{filter:blur(12px);pointer-events:none}
+.calc .ch{cursor:move;touch-action:none;user-select:none;-webkit-user-select:none;margin:-12px -12px 8px;padding:10px 12px;border-radius:16px 16px 0 0;background:var(--soft)}.calc .grip{color:var(--mut);margin-right:4px}.calc.drag{box-shadow:0 24px 60px rgba(0,0,0,.32)}
+@media(min-width:901px){body.x .cat{height:calc(100vh - var(--toph,66px));min-height:0;grid-template-rows:auto minmax(0,1fr) auto}body.x .cmain{min-height:0;overflow:hidden}
+ body.x .qarea{overflow-y:auto;min-height:0;max-width:none}body.x .qarea>*{max-width:900px}body.x .cpal{overflow-y:auto;min-height:0}body.x .abar{position:static}}
 </style></head>
 <body>
 <div class="strip"></div>
@@ -305,7 +310,7 @@ const first = n => String(n).split(" ")[0];
 const ini = n => String(n).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
 const view = h => { $("view").innerHTML = h; };
 const stopTimer = () => { if (timer) { clearInterval(timer); timer = null; } };
-const wide = (on, ex) => { document.body.classList.toggle("x", !!on); document.body.classList.toggle("ex", !!ex); };
+const wide = (on, ex) => { document.body.classList.toggle("x", !!on); document.body.classList.toggle("ex", !!ex); const t = document.querySelector(".top"); if (t) document.documentElement.style.setProperty("--toph", (t.offsetHeight + 4) + "px"); };
 const shade = (ok, n) => { if (!n) return ""; const a = ok / n; return a >= .8 ? "h4" : a >= .6 ? "h3" : a >= .4 ? "h2" : "h1"; };
 const calm = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const cellQ = (c, l) => PRB.filter(q => q.c === c && q.l === l);
@@ -370,9 +375,14 @@ function calcHide() { CL.on = false; $("calcbox").innerHTML = ""; }
 function calcToggle() {
   if (CL.on) return calcHide(); CL.on = true;
   const K = [["C", "C", "c"], ["⌫", "bk"], ["±", "neg"], ["÷", "÷", "o"], ["7"], ["8"], ["9"], ["×", "×", "o"], ["4"], ["5"], ["6"], ["−", "−", "o"], ["1"], ["2"], ["3"], ["+", "+", "o"], ["√", "sqrt"], ["0"], ["."], ["=", "=", "e"]];
-  $("calcbox").innerHTML = `<div class="calc" role="dialog" aria-label="Calculator"><div class="ch"><b>Calculator</b><button id="cx" aria-label="Close calculator">×</button></div><div class="cdp" id="cdisp">${esc(CL.d)}</div>
+  $("calcbox").innerHTML = `<div class="calc" role="dialog" aria-label="Calculator"><div class="ch" title="Drag to move"><b><span class="grip">⠿</span> Calculator</b><button id="cx" aria-label="Close calculator">×</button></div><div class="cdp" id="cdisp">${esc(CL.d)}</div>
    <div class="cg">${K.map(([t, k, c]) => `<button class="${c || ""}" data-k="${k || t}">${t}</button>`).join("")}</div></div>`;
   $("cx").onclick = calcHide;
+  const el = $("calcbox").querySelector(".calc"), hd = el.querySelector(".ch"), put = (x, y) => { const r = el.getBoundingClientRect(); x = Math.max(0, Math.min(innerWidth - r.width, x)); y = Math.max(0, Math.min(innerHeight - r.height, y));
+    Object.assign(el.style, {left: x + "px", top: y + "px", right: "auto", bottom: "auto"}); CL.x = x; CL.y = y; };
+  if (CL.x !== undefined) put(CL.x, CL.y);
+  hd.onpointerdown = e => { if (e.target.closest("button")) return; const r = el.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top; hd.setPointerCapture(e.pointerId); el.classList.add("drag");
+    hd.onpointermove = m => put(m.clientX - dx, m.clientY - dy); hd.onpointerup = hd.onpointercancel = () => { hd.onpointermove = null; el.classList.remove("drag"); }; };
   $("calcbox").querySelectorAll("[data-k]").forEach(b => b.onclick = () => calcKey(b.dataset.k));
 }
 function calcKey(k) {
@@ -538,7 +548,7 @@ function chrome() {
   $("who").innerHTML = `<span class="av" aria-hidden="true">${esc(ini(SES.name))}</span><span class="nm"><b>${esc(SES.name)}</b><small>${esc(SES.batch)}</small></span><a href="#" id="lo">Log out</a>`;
   $("lo").onclick = e => { e.preventDefault(); closeRuns(); logout(); };
 }
-function fade() { const v = $("view"); v.classList.remove("fade"); void v.offsetWidth; v.classList.add("fade"); clearTimeout(fade.t); fade.t = setTimeout(() => v.classList.remove("fade"), 400); }
+function fade() { const v = $("view"); v.classList.remove("fade"); void v.offsetWidth; v.classList.add("fade"); }
 function setTab(t) { stopTimer(); calcHide(); closeRuns(); busy = false; wkHook = null; tab = t; draw(); fade(); window.scrollTo(0, 0); }
 function draw() {
   if (!SES) return;
@@ -611,7 +621,7 @@ function home() {
   const stats = `<div class="stats">
     <div class="stat" style="display:flex;justify-content:space-between;gap:6px"><div><div class="lbl">Streak</div><b>${my.streak}</b> <em>day${my.streak === 1 ? "" : "s"}</em><div class="sm2">${my.streak ? "Keep it alive tomorrow" : "Start one today"}</div></div>${flame(my.streak)}</div>
     <div class="stat"><div class="lbl">Points</div><b>${my.pts}</b><div class="sm2 ${wk ? "ok" : ""}">${wk ? "#" + wk.rank + " this week" : "this week"}</div></div>
-    <div class="stat" style="display:flex;justify-content:space-between;gap:8px;align-items:center"><div><div class="lbl">Accuracy</div><b>${acc === null ? "–" : acc + "%"}</b><div class="sm2">this week</div></div><div class="ring" style="background:conic-gradient(var(--ok) ${acc || 0}%, var(--nv) 0)"></div></div>
+    <div class="stat" style="display:flex;justify-content:space-between;gap:8px;align-items:center"><div><div class="lbl">Accuracy</div><b>${acc === null ? "–" : acc + "%"}</b><div class="sm2" title="First try at questions that were new to you this week, across Daily 15, Practice, PYQs and the Ladder">first try · new Qs this week</div></div><div class="ring" style="background:conic-gradient(var(--ok) ${acc || 0}%, var(--nv) 0)"></div></div>
     <div class="stat"><div class="lbl">Practice</div><b>${bankDone}</b> <em>/ ${NPRAC}</em><div class="mbar"><i style="width:${Math.min(100, 100 * bankDone / NPRAC)}%"></i></div></div></div>`;
   const ag = {}; PRB.forEach(q => { const a = S.att["B" + q.n]; if (!a) return; const m = ag[q.c] = ag[q.c] || {}, g = m[q.l] = m[q.l] || {n: 0, ok: 0}; g.n++; g.ok += a.r === 1 ? 1 : 0; });
   let hm = `<div class="hm"><span></span>${[1, 2, 3, 4, 5].map(l => `<span class="hd">L${l}</span>`).join("")}`;
@@ -742,7 +752,7 @@ async function submitDaily() {
   if (!SES) return;
   if (!x.ok) { view(`<div class="center card"><p class="lead"><b>Not submitted yet.</b> ${esc(x.err)}</p><p class="small">Your answers are saved on this device. Do not clear your browser data.</p><button class="btn or big" id="rt">Try again</button></div>`); $("rt").onclick = submitDaily; return; }
   const prevBest = Object.keys(S.daily).filter(d => +d !== L.day && S.daily[d].done).reduce((m, d) => Math.max(m, S.daily[d].score), -99);
-  S.daily[L.day] = {done: 1, score: x.res.score, sec: x.res.seconds, ok: x.res.intime ? 1 : 0, correct: x.res.correct, rev: {ans: x.ans, key: x.key, tm: L.tm.map(t => Math.round(t)), seq: (L.seq || []).map(([j, s]) => [j, Math.round(s)])}};
+  S.daily[L.day] = {done: 1, score: x.res.score, sec: x.res.seconds, ok: x.res.intime ? 1 : 0, correct: x.res.correct, rev: {ans: x.ans, key: x.key, tm: L.tm.map(t => Math.round(t)), mk: (L.mk || []).slice(), seq: (L.seq || []).map(([j, s]) => [j, Math.round(s)])}};
   x.key.forEach((k, i) => { if (k.r !== null) S.att["B" + k.n] = {r: k.r, t: Math.round(L.tm[i] || 0), at: Date.now(), n: 1}; });
   S.live = null; S.hist.unshift({daily: L.day, title: "Daily 15 · Day " + L.day, at: Date.now()}); S.hist = S.hist.slice(0, 20); save(); BT.my.streak += 1;
   const party = x.res.score === 45 || (prevBest > -99 && x.res.score > prevBest);
@@ -763,7 +773,7 @@ const qOf = x => x.q || Q(x.k);
 function dailyRec(d) {
   const x = S.daily[d], rv = x.rev, tm = rv.tm || [];
   return {title: "Daily 15 · Day " + d, kind: "daily", daily: d, set: true, at: 0, seq: rv.seq || [], score: x.score, max: 45, correct: x.correct, total: rv.key.length, time: x.sec, late: !x.ok,
-    items: rv.key.map((k, i) => { const a = rv.ans[i], blank = a === null || a === undefined || a === ""; return {k: "B" + k.n, q: k, pick: blank ? null : a, r: blank ? null : k.r, t: tm[i] || 0, tgt: TARGET[k.l]}; })};
+    items: rv.key.map((k, i) => { const a = rv.ans[i], blank = a === null || a === undefined || a === ""; return {k: "B" + k.n, q: k, pick: blank ? null : a, r: blank ? null : k.r, t: tm[i] || 0, tgt: TARGET[k.l], mk: (rv.mk || [])[i] ? 1 : 0}; })};
 }
 function dailyResult(d, board, o) {
   const x = S.daily[d]; if (!x || !x.rev) return; o = o || {};
@@ -773,8 +783,10 @@ function analysis(rec) {
   const its = rec.items, timed = its.some(x => x.t > 0);
   const chip = j => `<button class="qc" data-j="${j}">Q${j + 1}</button>`;
   const grp = f => its.map((x, j) => f(x) ? chip(j) : "").join("") || `<span class="small">none</span>`;
-  const sk = its.map((x, j) => x.pick === null ? chip(j) : "").join("");
+  const skj = its.map((x, j) => x.pick === null ? j : -1).filter(j => j >= 0), sk = skj.slice(0, 20).map(chip).join("") + (skj.length > 20 ? `<span class="small">and ${skj.length - 20} more</span>` : "");
+  const rh = its.filter(x => x.r === 1 && x.h).length, rn = its.filter(x => x.r === 1 && !x.h).length, wr = its.filter(x => x.r === 0).length;
   let h = `<div class="card"><div class="chd"><span class="lbl">Analysis · speed against accuracy</span><span class="small">Tap a question to review it</span></div>`;
+  if (!rec.set) h += `<div class="sumt" style="grid-template-columns:repeat(3,1fr);margin:0 0 14px"><div><b>${rn}</b>Right without a hint</div><div><b>${rh}</b>Right after a hint</div><div><b>${wr}</b>Wrong</div></div>`;
   if (timed) h += `<div class="quad">
      <div class="qd g"><b>Fast and right</b><small>Inside the target time. Bank these.</small><div class="qcs">${grp(x => x.r === 1 && x.t <= x.tgt)}</div></div>
      <div class="qd y"><b>Slow and right</b><small>You know it. Look for the shorter method.</small><div class="qcs">${grp(x => x.r === 1 && x.t > x.tgt)}</div></div>
@@ -792,6 +804,8 @@ function analysis(rec) {
   }
   return h + `</div>`;
 }
+const CAT5 = [["ok", "Right"], ["no", "Wrong"], ["sk", "Blank"], ["mk", "Marked for review"], ["h", "Used a hint"]];
+const inCat = (x, c) => c === "ok" ? x.r === 1 : c === "no" ? x.r === 0 : c === "sk" ? x.pick === null : c === "mk" ? !!x.mk : !!x.h;
 function results(rec, o) {
   o = o || {}; stopTimer(); calcHide(); wide(false); busy = true; tab = o.back || tab; chrome(); wkHook = null;
   const its = rec.items.filter(qOf), N = its.length, ok = its.filter(x => x.r === 1).length, wrong = its.filter(x => x.r === 0).length, att = its.filter(x => x.pick !== null).length;
@@ -801,16 +815,18 @@ function results(rec, o) {
   let pct = "";
   if (isD && o.board && o.board.all && o.board.all.me) { const b = o.board.all, r = b.me.rank;
     pct = b.of > 1 ? `<p class="pctl">You beat <b>${Math.round(100 * (b.of - r) / (b.of - 1))}%</b> of the ${b.of} who have taken Day ${rec.daily} so far. Rank <b>${r}</b> today.</p>` : `<p class="pctl">You are the first to finish Day ${rec.daily}. The board fills up through the day.</p>`; }
-  const redo = f => its.filter(f).map(x => x.k).filter(k => Q(k));
-  const rw = redo(x => x.r === 0), rws = redo(x => x.r !== 1), rall = redo(() => true);
+  const can = its.filter(x => Q(x.k)), redoable = can.length > 0;
+  const pick = new Set(["no", "sk"].filter(c => can.some(x => inCat(x, c))));
+  const picker = () => { const ks = can.filter(x => [...pick].some(c => inCat(x, c))).map(x => x.k);
+    return `<div class="lbl" style="margin:16px 0 8px">Redo · pick one or more</div><div class="chips" id="rp">${CAT5.map(([c, n]) => { const k = can.filter(x => inCat(x, c)).length; return k ? `<button class="chip ${pick.has(c) ? "on" : ""}" data-p="${c}">${pick.has(c) ? "✓ " : ""}${n} · ${k}</button>` : ""; }).join("")}</div>
+      <div class="row" style="margin:10px 0 0"><button class="btn" id="rgo" ${ks.length ? "" : "disabled"}>Redo ${ks.length} question${ks.length === 1 ? "" : "s"}</button><button class="btn alt" id="rall">Redo the whole set</button></div>`; };
   let h = `<div class="narrow"><div class="phead"><div><h1>${esc(rec.title)}</h1><p class="sub">${o.best ? "A personal best. " : ""}Your result, where the time went, and every question to review.</p></div></div>
    <div class="card reveal">${big}<div>
     ${pct}<p class="wkm" id="wkm"></p>
-    <p class="lead" style="margin:0 0 10px"><b>${ok}</b> correct out of ${N} (${att} attempted, ${wrong} wrong) in ${fmt(rec.time)}.${rec.set && !isD ? " Score <b>" + rec.score + "</b> of " + rec.max + " (+3, and −1 for a wrong MCQ)." : ""}</p>
+    <p class="lead" style="margin:0 0 10px"><b>${ok}</b> correct out of ${N} (${att} attempted, ${wrong} wrong) in ${fmt(rec.time)}.${rec.set && !isD ? " Score <b>" + rec.score + "</b> of " + rec.max + " (+3, and −1 for a wrong MCQ)." : ""}${rec.auto ? " The time ran out, so the set was submitted for you." : ""}</p>
     ${rec.late ? `<div class="fb hint" style="margin:0 0 10px">This paper came in after the time limit, so it is marked but not ranked.</div>` : ""}${rec.verdict || ""}
     <div class="row" style="margin:0"><button class="btn or" id="ra">Review all ${N} questions</button>${isD ? `<button class="btn alt" id="lb2">All leaderboards</button>` : ""}<button class="btn alt" id="bk">Back to ${esc((TABS.find(t => t[0] === (o.back || "home")) || ["", "Home"])[1])}</button></div>
-    ${rall.length ? `<div class="row" style="margin:10px 0 0">${rw.length ? `<button class="btn alt sm" id="rw">Redo wrong (${rw.length})</button>` : ""}${rws.length > rw.length ? `<button class="btn alt sm" id="rws">Redo wrong + blank (${rws.length})</button>` : ""}<button class="btn alt sm" id="rall">Redo the whole set</button></div>`
-      : isD ? `<p class="small" style="margin:10px 0 0">These questions join Practice tomorrow morning, and you can redo them then.</p>` : ""}
+    <div id="rpw">${redoable ? picker() : isD ? `<p class="small" style="margin:10px 0 0">These questions join Practice tomorrow morning, and you can redo them then.</p>` : ""}</div>
    </div></div>${analysis(rec)}`;
   if (isD && o.board) h += `<h3>Today's board</h3><div class="card">` + boardTable(o.board.all, ["Score", "Time"], r => `<td>${r[2]}</td><td>${fmt(r[3])}</td>`) + `</div>`;
   view(h + `</div>`); window.scrollTo(0, 0); countUp();
@@ -818,53 +834,56 @@ function results(rec, o) {
   wkHook = () => { const el = $("wkm"); if (!el || !S.wkr) return; el.className = "wkm" + (prev && S.wkr < prev ? " up" : "");
     el.textContent = prev && S.wkr !== prev ? (S.wkr < prev ? "▲ " : "▼ ") + "Weekly rank " + prev + " → " + S.wkr : "Weekly rank: #" + S.wkr; };
   if (o.party) setTimeout(confetti, 350);
-  const tag = rec.kind === "daily" ? "redo" : rec.kind;
-  $("view").querySelectorAll(".qc,.sg").forEach(b => b.onclick = () => reviewMode(rec, +b.dataset.j, "all", o));
-  $("ra").onclick = () => reviewMode(rec, 0, "all", o);
+  const kind = rec.kind === "pyq" ? "pyq" : "redo";
+  const wirePick = () => {
+    if (!$("rp")) return;
+    $("rp").querySelectorAll("button").forEach(b => b.onclick = () => { const c = b.dataset.p; pick.has(c) ? pick.delete(c) : pick.add(c); $("rpw").innerHTML = picker(); wirePick(); });
+    $("rgo").onclick = () => { const ks = can.filter(x => [...pick].some(c => inCat(x, c))).map(x => x.k); play(ks, {title: "Redo: " + [...pick].map(c => CAT5.find(z => z[0] === c)[1].toLowerCase()).join(" + "), kind}); };
+    $("rall").onclick = () => { const all = can.map(x => x.k); rec.lad ? play(all, {title: rec.title, set: true, kind: "ladder", tag: {chapter: rec.lad.c, level: rec.lad.l}, lad: rec.lad}) : play(shuffle(all), {title: rec.title + " (again)", set: rec.set && !isD, kind}); };
+  };
+  wirePick();
+  $("view").querySelectorAll(".qc,.sg").forEach(b => b.onclick = () => reviewMode(rec, +b.dataset.j, [], o));
+  $("ra").onclick = () => reviewMode(rec, 0, [], o);
   $("bk").onclick = () => setTab(o.back || "home");
   if ($("lb2")) $("lb2").onclick = () => { BF.which = "daily"; BF.day = rec.daily; setTab("boards"); };
-  if ($("rw")) $("rw").onclick = () => play(rw, {title: "Redo: wrong ones", kind: "redo"});
-  if ($("rws")) $("rws").onclick = () => play(rws, {title: "Redo: wrong and blank", kind: "redo"});
-  if ($("rall")) $("rall").onclick = () => rec.lad ? play(rall, Object.assign({title: rec.title, set: true, kind: "ladder", tag: {chapter: rec.lad.c, level: rec.lad.l}, lad: rec.lad})) : play(shuffle(rall), {title: rec.title + " (again)", set: rec.set && !isD, kind: tag === "pyq" ? "pyq" : "redo"});
   checkBadges();
 }
 function reviewMode(rec, j0, f0, o) {
   stopTimer(); calcHide(); wide(true, true); $("tabs").innerHTML = ""; busy = true;
-  const its = rec.items, N = its.length; let i = j0, f = f0;
+  const its = rec.items, N = its.length; let i = j0; const f = new Set(f0 || []);
   const res = x => x.r === 1 ? "ok" : x.r === 0 ? "no" : "sk";
-  const fit = x => f === "all" || res(x) === f;
+  const fit = x => !f.size || [...f].some(c => inCat(x, c));
   const list = () => its.map((x, j) => j).filter(j => fit(its[j]));
   const show = () => {
     const x = its[i], q = qOf(x), r = res(x), L = list(), pos = L.indexOf(i);
-    const cnt = {all: N, ok: its.filter(z => res(z) === "ok").length, no: its.filter(z => res(z) === "no").length, sk: its.filter(z => res(z) === "sk").length};
     let body;
     if (q.t === "M") body = q.o.map((t, j) => `<div class="opt ${j === q.ai ? "right" : (j === x.pick ? "wrong" : "")}"><b>${"ABCD"[j]}</b><span>${esc(t)}</span>${j === x.pick ? '<span class="yours">Your answer</span>' : ""}</div>`).join("");
     else body = `<div class="cmp"><div class="${r === "ok" ? "r" : r === "no" ? "w" : ""}"><small>Your answer</small><b>${x.pick === null ? "—" : esc(x.pick)}</b></div><div class="r"><small>Correct answer</small><b>${esc(q.a)}</b></div></div>`;
-    body += `<div class="fb ${r === "ok" ? "ok" : r === "no" ? "no" : "hint"}"><b>${r === "ok" ? "Right" : r === "no" ? "Wrong" : "Left blank"}.</b> Correct answer: <b>${q.t === "M" ? "ABCD"[q.ai] + ". " + esc(q.o[q.ai]) : esc(q.a)}</b>${x.t ? ` · You took ${fmt(x.t)}, target ${fmt(x.tgt)}${x.t > x.tgt ? " (over)" : ""}` : ""}.</div>`;
+    body += `<div class="fb ${r === "ok" ? "ok" : r === "no" ? "no" : "hint"}"><b>${r === "ok" ? "Right" : r === "no" ? "Wrong" : "Left blank"}.</b> Correct answer: <b>${q.t === "M" ? "ABCD"[q.ai] + ". " + esc(q.o[q.ai]) : esc(q.a)}</b>${x.pick !== null && q.t === "M" ? ` · You marked <b>${"ABCD"[x.pick]}</b>` : ""}${x.t ? ` · You took ${fmt(x.t)}, target ${fmt(x.tgt)}${x.t > x.tgt ? " (over)" : ""}` : ""}.</div>`;
     if (q.h) body += `<div class="fb hint"><b>Hint:</b> ${esc(q.h)}</div>`;
     if (r === "no") body += whyRow(x.k, S.why[x.k]);
+    const cnt = c => its.filter(z => inCat(z, c)).length;
     const h = `<div class="cat">
      <div class="chead"><div class="tt"><b>Review · ${esc(rec.title)}</b><small>${q.c ? esc(chName(q.c)) + (q.l ? " · Level " + q.l : q.y ? " · " + esc(q.y) : "") : ""}</small></div>
-      <div class="seg rvf" id="rf">${[["all", "All"], ["ok", "Right"], ["no", "Wrong"], ["sk", "Blank"]].map(([k, n]) => `<button class="${f === k ? "on" : ""}" data-f="${k}" ${cnt[k] ? "" : "disabled"}>${n} · ${cnt[k]}</button>`).join("")}</div>
       <button class="btn alt sm" id="rb">Back to results</button></div>
-     <div class="cmain"><div class="qbar"><b>Question ${i + 1} <span class="mut">/ ${N}</span></b><span><span class="tag ${r === "ok" ? "ok" : r === "no" ? "bad" : ""}">${r === "ok" ? "Right" : r === "no" ? "Wrong" : "Blank"}</span><span class="tag">${q.t === "M" ? "MCQ" : "TITA"}</span><button class="svb ${S.mark[x.k] ? "on" : ""}" id="sv">${S.mark[x.k] ? "★ Saved" : "☆ Save to My log"}</button></span></div>
+     <div class="cmain"><div class="qbar"><b>Question ${i + 1} <span class="mut">/ ${N}</span></b><span><span class="tag ${r === "ok" ? "ok" : r === "no" ? "bad" : ""}">${r === "ok" ? "Right" : r === "no" ? "Wrong" : "Blank"}</span>${x.mk ? '<span class="tag" style="background:var(--purbg);color:var(--purd)">Marked</span>' : ""}${x.h ? '<span class="tag or">Hint used</span>' : ""}<span class="tag">${q.t === "M" ? "MCQ" : "TITA"}</span><button class="svb ${S.mark[x.k] ? "on" : ""}" id="sv">${S.mark[x.k] ? "★ Saved" : "☆ Save to My log"}</button></span></div>
       <div class="qarea rvq"><div class="stem">${esc(q.s)}</div>${body}</div>
-      <div class="abar"><span class="small">${f === "all" ? "" : "Showing " + L.length + " of " + N}</span><span class="sp"></span><button class="btn alt" id="pv" ${pos > 0 ? "" : "disabled"}>Previous</button><button class="btn go" id="nx" ${pos < L.length - 1 ? "" : "disabled"}>Next</button></div></div>
-     <div class="cpal"><div class="lgd">${lgdHTML([["ok", cnt.ok, "Right"], ["no", cnt.no, "Wrong"], ["v", cnt.sk, "Left blank"]])}</div><div class="lbl">Question palette</div>
-      <div class="pal">${its.map((z, j) => `<button class="pt ${res(z) === "sk" ? "v" : res(z)}${j === i ? " c" : ""}${fit(z) ? "" : " dim"}" data-j="${j}" aria-label="Question ${j + 1}">${j + 1}</button>`).join("")}</div></div>
-     <div class="crest"><div class="lgd" style="display:grid">${lgdHTML([["ok", cnt.ok, "Right"], ["no", cnt.no, "Wrong"], ["v", cnt.sk, "Left blank"]])}</div><button class="btn dk big wide" id="rb2">Back to results</button></div></div>`;
+      <div class="abar"><span class="small">${f.size ? "Showing " + L.length + " of " + N : "Showing all " + N}</span><span class="sp"></span><button class="btn alt" id="pv" ${pos > 0 ? "" : "disabled"}>Previous</button><button class="btn go" id="nx" ${pos >= 0 && pos < L.length - 1 ? "" : "disabled"}>Next</button></div></div>
+     <div class="cpal"><div class="lbl">Show · pick any</div><div class="chips rvf" id="rf" style="margin-bottom:16px">${CAT5.map(([c, n]) => `<button class="chip ${f.has(c) ? "on" : ""}" data-f="${c}" ${cnt(c) ? "" : "disabled"}>${f.has(c) ? "✓ " : ""}${n} · ${cnt(c)}</button>`).join("")}</div>
+      <div class="lbl">Question palette</div>
+      <div class="pal">${its.map((z, j) => `<button class="pt ${res(z) === "sk" ? "v" : res(z)}${z.mk ? " bm" : ""}${j === i ? " c" : ""}${fit(z) ? "" : " dim"}" data-j="${j}" aria-label="Question ${j + 1}">${j + 1}</button>`).join("")}</div></div>
+     <div class="crest"><button class="btn dk big wide" id="rb2">Back to results</button></div></div>`;
     view(h); tex($("view"));
-    $("view").querySelectorAll("#rf button").forEach(b => b.onclick = () => { f = b.dataset.f; const L2 = list(); if (!L2.includes(i)) i = L2[0]; show(); });
-    $("view").querySelectorAll(".pal button").forEach(b => b.onclick = () => { i = +b.dataset.j; if (!fit(its[i])) f = "all"; show(); window.scrollTo(0, 0); });
-    $("pv").onclick = () => { i = L[pos - 1]; show(); window.scrollTo(0, 0); };
-    $("nx").onclick = () => { i = L[pos + 1]; show(); window.scrollTo(0, 0); };
+    $("view").querySelectorAll("#rf button").forEach(b => b.onclick = () => { const c = b.dataset.f; f.has(c) ? f.delete(c) : f.add(c); const L2 = list(); if (L2.length && !L2.includes(i)) i = L2[0]; show(); });
+    $("view").querySelectorAll(".pal button").forEach(b => b.onclick = () => { i = +b.dataset.j; show(); window.scrollTo(0, 0); });
+    $("pv").onclick = () => { i = L[pos - 1]; show(); };
+    $("nx").onclick = () => { i = L[pos + 1]; show(); };
     $("sv").onclick = () => { S.mark[x.k] ? delete S.mark[x.k] : S.mark[x.k] = 1; save(); show(); };
     $("rb").onclick = $("rb2").onclick = () => results(rec, Object.assign({}, o, {party: false}));
     whyBind(() => show());
   };
   show(); window.scrollTo(0, 0);
 }
-
 // ---------- practice ----------
 function chipset(id, items, sel) { return `<div class="chips" id="${id}">` + items.map(([v, n]) => `<button class="chip ${sel.includes(v) ? "on" : ""}" data-v="${v}">${n}</button>`).join("") + "</div>"; }
 function bind(id, arr, cb) { $(id).querySelectorAll("button").forEach(b => b.onclick = () => { const v = isNaN(b.dataset.v) ? b.dataset.v : +b.dataset.v; const i = arr.indexOf(v); i < 0 ? arr.push(v) : arr.splice(i, 1); cb(); }); }
@@ -915,7 +934,8 @@ function ladderOpts(c, l) {
       if (!old || cleared || res.correct > old.correct) S.ladder[c][l] = {correct: res.correct, time: res.time, score: res.score, cleared: cleared || (old && old.cleared) || false}; res.cleared = cleared; save(); },
     verdict: res => `<p class="lead" style="margin:0 0 10px"><b>${res.cleared ? "Level cleared. The next level is open." : "Not cleared yet."}</b>${res.cleared ? "" : " You need " + Math.ceil(BT.cfg.pass * res.total) + " correct within " + fmt(cap) + ". To clear this level, try again."}</p>`};
 }
-/** Plays a set. Navigation is locked until the student finishes; progress is saved on the device after every action, so a refresh resumes the set. */
+/** Plays a set. Navigation is locked until the student finishes; progress is saved on the device after every action, so a refresh resumes the set.
+ *  Learn mode: clicking an option only selects it; Check answer or Save & Next marks it. Test mode: a countdown (sum of target times) that submits at 0:00. */
 function play(keys, o, resume) {
   if (!keys.length) return; o = Object.assign({}, o || {}); stopTimer(); calcHide(); busy = true; wkHook = null;
   const st = resume || null, back = st ? st.back : (tab === "exam" ? "daily" : tab);
@@ -923,74 +943,87 @@ function play(keys, o, resume) {
   if (st) S.out.forEach(r => { if (r !== run && !r.done) r.done = true; }); else closeRuns();
   if (!run) run = newRun(o.kind || "practice", o.tag, keys.length);
   if (o.lad) Object.assign(o, ladderOpts(o.lad.c, o.lad.l));
-  const R = st ? st.R : keys.map(() => ({pick: null, r: null, t: 0, hint: false, vis: 0, mk: 0}));
-  const seq = st ? st.seq : [];
-  let i = st ? st.i : 0, t0 = Date.now(), finished = false, ask = false;
-  S.play = {keys, o: {title: o.title, set: !!o.set, hide: !!o.hide, kind: o.kind, tag: o.tag, lad: o.lad, sub: o.sub}, R, seq, i, runId: run.id, back}; save();
+  const R = st ? st.R : keys.map(() => ({pick: null, r: null, t: 0, hint: false, vis: 0, mk: 0, sel: null}));
+  const seq = st ? st.seq : [], limit = keys.reduce((a, k) => a + tgtOf(k), 0);
+  let i = st ? st.i : 0, t0 = Date.now(), finished = false, ask = false, paused = false;
+  S.play = {keys, o: {title: o.title, set: !!o.set, hide: !!o.hide, kind: o.kind, tag: o.tag, lad: o.lad}, R, seq, i, runId: run.id, back}; save();
   $("tabs").innerHTML = ""; wide(true, true);
-  const stop = () => { const s = (Date.now() - t0) / 1000; t0 = Date.now(); if (R[i].r === null || o.set) { R[i].t += s; if (s >= 1) { const z = seq[seq.length - 1]; if (z && z[0] === i) z[1] += s; else seq.push([i, s]); } } S.play.i = i; save(); };
+  const used = () => R.reduce((a, r) => a + r.t, 0) + (paused ? 0 : (Date.now() - t0) / 1000);
+  const stop = () => { const s = paused ? 0 : (Date.now() - t0) / 1000; t0 = Date.now(); if (R[i].r === null || o.set) { R[i].t += s; if (s >= 1) { const z = seq[seq.length - 1]; if (z && z[0] === i) z[1] += s; else seq.push([i, s]); } } S.play.i = i; save(); };
   const item = (k, r) => ({q: k, r: r.r, t: Math.round(r.t), m: Q(k).t === "M" ? 1 : 0});
   const stOf = j => { const r = R[j];
     if (o.set) return r.pick !== null ? (r.mk ? "am" : "a") : (r.mk ? "m" : (r.vis ? "n" : "v"));
-    return (r.r === 1 ? "ok" : r.r === 0 ? "no" : (r.vis ? "sn" : "v")) + (r.mk ? " bm" : ""); };
+    return (r.r === 1 ? "ok" : r.r === 0 ? "no" : r.sel !== null && r.sel !== "" ? "sv" : (r.vis ? "sn" : "v")) + (r.mk ? " bm" : ""); };
   const legend = () => { const c = {}; keys.forEach((k, j) => { const s = stOf(j).split(" ")[0]; c[s] = (c[s] || 0) + 1; if (R[j].mk) c.bm = (c.bm || 0) + 1; }); const g = s => c[s] || 0;
     return o.set ? lgdHTML([["a", g("a"), "Answered"], ["n", g("n"), "Not answered"], ["v", g("v"), "Not visited"], ["m", g("m"), "Marked for review"], ["am", g("am"), "Answered and marked for review", 1]])
-      : lgdHTML([["ok", g("ok"), "Correct"], ["no", g("no"), "Wrong"], ["sn", g("sn"), "Seen, not answered"], ["v", g("v"), "Not visited"], ["v bm", g("bm") || "", "Marked for review (this sitting only)", 1]]); };
+      : lgdHTML([["ok", g("ok"), "Correct"], ["no", g("no"), "Wrong"], ["sv", g("sv"), "Selected, not checked"], ["sn", g("sn"), "Seen, not answered"], ["v", g("v"), "Not visited"], ["v bm", g("bm") || "", "Marked for review (this sitting)", 1]]); };
+  /** Marks the current question's answer: in Learn mode it is checked and logged; in Test mode it is only saved. */
+  const commit = v => { const r = R[i], q = Q(keys[i]); r.pick = v; r.r = check(q, v) ? 1 : 0; r.sel = null; if (!o.set) { record(keys[i], r); run.items.push(item(keys[i], r)); } save(); };
+  const pending = () => { const r = R[i]; if (r.r !== null && !o.set) return null; const ti = $("ti"); if (ti && !ti.disabled) { const v = ti.value.trim(); return v === "" ? null : v; } return o.set ? null : (r.sel === null || r.sel === undefined ? null : r.sel); };
   const show = () => {
     R[i].vis = 1; S.play.i = i;
     const k = keys[i], q = Q(k), isB = k[0] === "B", r = R[i], answered = r.pick !== null, reveal = answered && !o.set, last = i === keys.length - 1;
-    const tgt = tgtOf(k);
+    const tgt = tgtOf(k), cur = o.set ? r.pick : r.sel;
     const where = isB ? (o.hide && !reveal ? "Bank question" : chName(q.c) + " · Level " + q.l + " " + LVN[q.l]) : chName(q.c) + " · " + q.y;
     let body;
-    if (q.t === "M") body = q.o.map((x, j) => `<button class="opt ${reveal ? (j === q.ai ? "right" : (j === r.pick ? "wrong" : "")) : (j === r.pick ? "pick" : "")}" data-j="${j}"><b>${"ABCD"[j]}</b><span>${esc(x)}</span></button>`).join("");
-    else body = `<div class="tita"><div class="in"><div class="lbl">Your answer</div><input type="text" id="ti" inputmode="text" autocomplete="off" placeholder="Type or use the keypad" value="${answered ? esc(r.pick) : ""}" ${reveal ? "disabled" : ""}>
-      ${reveal ? "" : `<div class="row" style="margin-top:12px"><button class="btn" id="tb">${o.set ? "Save answer" : "Check answer"}</button></div>`}</div>${reveal ? "" : keypad()}</div>`;
-    if (reveal) body += `<div class="fb ${r.r ? "ok" : "no"}"><b>${r.r ? "Correct" : "Not correct"}</b> in ${fmt(r.t)}${r.t > tgt ? " (over the " + fmt(tgt) + " target)" : (r.r ? ", inside the target" : "")}. ${r.r ? "" : "Answer: " + (q.t === "M" ? "<b>" + "ABCD"[q.ai] + "</b> " + esc(q.o[q.ai]) : "<b>" + esc(q.a) + "</b>")}</div>`;
+    if (q.t === "M") body = q.o.map((x, j) => `<button class="opt ${reveal ? (j === q.ai ? "right" : (j === r.pick ? "wrong" : "")) : (j === cur ? "pick" : "")}" data-j="${j}"><b>${"ABCD"[j]}</b><span>${esc(x)}</span></button>`).join("");
+    else body = `<div class="tita"><div class="in"><div class="lbl">Your answer</div><input type="text" id="ti" inputmode="text" autocomplete="off" placeholder="Type or use the keypad" value="${answered ? esc(r.pick) : (r.sel !== null && r.sel !== undefined ? esc(r.sel) : "")}" ${reveal ? "disabled" : ""}></div>${reveal ? "" : keypad()}</div>`;
+    if (reveal) body += `<div class="fb ${r.r ? "ok" : "no"}"><b>${r.r ? "Correct" : "Not correct"}</b> in ${fmt(r.t)}${r.t > tgt ? " (over the " + fmt(tgt) + " target)" : (r.r ? ", inside the target" : "")}${r.hint ? ", after the hint" : ""}. ${r.r ? "" : "Answer: " + (q.t === "M" ? "<b>" + "ABCD"[q.ai] + "</b> " + esc(q.o[q.ai]) : "<b>" + esc(q.a) + "</b>")}${q.t === "M" && !r.r ? ". You chose <b>" + "ABCD"[r.pick] + "</b>." : ""}</div>`;
     if (reveal && !r.r) body += whyRow(k, S.why[k]);
-    if (o.set && answered) body += `<div class="fb hint">Answer saved. You can change it until you finish the set.</div>`;
+    if (o.set && answered) body += `<div class="fb hint">Answer saved. You can change it until you submit.</div>`;
     if (r.hint && q.h) body += `<div class="fb hint"><b>Hint:</b> ${esc(q.h)}</div>`;
     const done = R.filter(x => x.r !== null && !o.set).length, okn = R.filter(x => x.r === 1).length, nAns = R.filter(x => x.pick !== null).length;
     const c = {}; keys.forEach((x, j) => { const s = stOf(j).split(" ")[0]; c[s] = (c[s] || 0) + 1; });
+    const left = limit - used();
     let h = `<div class="cat">
      <div class="chead"><div class="tt"><b>${esc(o.title || "Practice")}</b><small>${esc(where)}</small></div>
       <span class="tag mode2 ${o.set ? "or" : ""}" style="margin:0">${o.set ? "Test mode" : "Learn mode"}</span>
+      <button class="btn alt sm" id="ps" title="Stop the clock">❚❚<span>Pause</span></button>
       <button class="btn alt sm" id="cb">${ICAL}<span>Calculator</span></button>
-      <div class="timer lt"><small>TARGET ${fmt(tgt)}</small><span class="clock" id="ck">${fmt(r.t)}</span></div></div>
+      ${o.set ? `<div class="timer"><small>TIME LEFT</small><span class="clock${left < 120 ? " low" : ""}" id="ck">${fmt(left)}</span></div><div class="tbar"><i id="tbi" style="width:${Math.min(100, 100 * used() / limit)}%"></i></div>`
+        : `<div class="timer lt"><small>TARGET ${fmt(tgt)}</small><span class="clock" id="ck">${fmt(r.t)}</span></div>`}</div>
      <div class="cmain"><div class="qbar"><b>Question ${i + 1} <span class="mut">/ ${keys.length}</span></b><span>${q.t === "M" ? '<span class="tag">MCQ</span>' : '<span class="tag or">TITA · type the answer</span>'}<button class="svb ${S.mark[k] ? "on" : ""}" id="sv" title="Keep this question in My log">${S.mark[k] ? "★ Saved" : "☆ Save to My log"}</button></span></div>
-      <div class="qarea"><div class="stem">${esc(q.s)}</div>${body}</div>
+      <div class="qarea ${paused ? "blur" : ""}"><div class="stem">${esc(q.s)}</div>${body}</div>
       <div class="abar">${o.set ? `<button class="btn pur" id="mr">Mark for Review &amp; Next</button>${answered ? '<button class="btn alt" id="cl">Clear Response</button>' : ""}`
-        : `<button class="btn pur ${r.mk ? "on" : ""}" id="mr">${r.mk ? "Marked for review ✓" : "Mark for review"}</button>${isB && q.h && !r.hint ? '<button class="btn alt" id="hb">Show hint</button>' : ""}`}<span class="sp"></span>
+        : `<button class="btn pur ${r.mk ? "on" : ""}" id="mr">${r.mk ? "Marked for review ✓" : "Mark for review"}</button>${isB && q.h && !r.hint && !reveal ? '<button class="btn alt" id="hb">Show hint</button>' : ""}${reveal ? "" : `<button class="btn" id="chk" ${cur !== null && cur !== undefined && cur !== "" ? "" : "disabled"}>Check answer</button>`}`}<span class="sp"></span>
        <button class="btn alt" id="pv" ${i ? "" : "disabled"}>Previous</button>
-       <button class="btn go" id="nx">${o.set ? (last ? "Save &amp; Finish" : "Save &amp; Next") : (last ? "Finish" : "Next")}</button></div></div>
+       <button class="btn go" id="nx">${last ? (o.set ? "Save &amp; Submit" : "Save &amp; Finish") : (reveal ? "Next" : "Save &amp; Next")}</button></div></div>
      <div class="cpal"><div class="lgd lw">${legend()}</div><div class="lbl">Question palette</div>
       <div class="pal">${keys.map((x, j) => `<button class="pt ${stOf(j)}${j === i ? " c" : ""}" data-j="${j}" aria-label="Question ${j + 1}">${j + 1}</button>`).join("")}</div></div>
-     <div class="crest"><div class="lgd lw">${legend()}</div>${o.set ? `<p class="small" style="margin:0">Answers and your score appear when you submit. Progress is saved on this device, so a refresh will not lose it.</p>` : `<p class="small" style="margin:0"><b style="color:var(--ink)">${okn} of ${done}</b> checked so far are right. Progress is saved on this device.</p>`}
+     <div class="crest"><div class="lgd lw">${legend()}</div>${o.set ? `<p class="small" style="margin:0">The set submits itself when the time runs out. Progress is saved on this device.</p>` : `<p class="small" style="margin:0"><b style="color:var(--ink)">${okn} of ${done}</b> checked so far are right. Progress is saved on this device.</p>`}
       <button class="btn dk big wide" id="fin">${o.set ? "Submit set" : "End and see analysis"}</button></div></div>`;
-    if (ask) h += `<div class="modal" role="dialog" aria-modal="true"><div class="box"><h2>Submit this set?</h2>
+    if (paused) h += `<div class="modal solid" role="dialog" aria-modal="true"><div class="box" style="text-align:center"><h2>Paused</h2><p class="lead">The clock has stopped and the question is hidden.</p><button class="btn or big" id="pr">Resume</button></div></div>`;
+    else if (ask) h += `<div class="modal" role="dialog" aria-modal="true"><div class="box"><h2>Submit this set?</h2>
       <div class="sumt"><div><b>${(c.a || 0) + (c.am || 0)}</b>Answered</div><div><b>${c.n || 0}</b>Not answered</div><div><b>${(c.m || 0) + (c.am || 0)}</b>Marked for review</div><div><b>${c.v || 0}</b>Not visited</div></div>
       <p class="lead">${keys.length - nAns ? "<b>" + (keys.length - nAns) + " unanswered.</b> " : ""}You will see your score, the analysis and every answer next.</p>
       <div class="row"><button class="btn alt" id="fk">Keep working</button><button class="btn or" id="fy">Yes, submit</button></div></div></div>`;
     view(h); tex($("view"));
     stopTimer();
-    timer = setInterval(() => { if (R[i].r !== null && !o.set) return; const el = $("ck"); if (!el) return; const s = R[i].t + (Date.now() - t0) / 1000; el.textContent = fmt(s); el.className = "clock" + (s > tgt ? " over" : ""); }, 500);
-    const answer = v => { stop(); r.pick = v; r.r = check(q, v) ? 1 : 0; if (!o.set) { record(k, r); run.items.push(item(k, r)); } save(); show(); };
-    const jump = j => { const tv = $("ti") && !$("ti").disabled ? $("ti").value.trim() : ""; if (o.set && tv !== "" && tv !== String(r.pick)) { r.pick = tv; r.r = check(q, tv) ? 1 : 0; }
+    timer = setInterval(() => { if (paused) return; const el = $("ck"); if (!el) return;
+      if (o.set) { const s = limit - used(); el.textContent = fmt(s); el.className = "clock" + (s < 120 ? " low" : ""); if ($("tbi")) $("tbi").style.width = Math.min(100, 100 * used() / limit) + "%"; if (s <= 0) { stop(); finish(true); } return; }
+      if (R[i].r !== null) return; const s = R[i].t + (Date.now() - t0) / 1000; el.textContent = fmt(s); el.className = "clock" + (s > tgt ? " over" : ""); }, 500);
+    const jump = j => { const v = pending(); if (v !== null) { if (o.set) { if (String(v) !== String(r.pick)) { r.pick = v; r.r = check(q, v) ? 1 : 0; } } else commit(v); }
       stop(); i = j; ask = false; show(); window.scrollTo(0, 0); };
-    $("view").querySelectorAll(".opt").forEach(b => b.onclick = () => { if (!reveal) answer(+b.dataset.j); });
-    if ($("tb")) { $("tb").onclick = () => { const v = $("ti").value.trim(); if (v !== "") answer(v); }; $("ti").onkeydown = e => { if (e.key === "Enter") $("tb").click(); }; kpBind(); }
+    $("view").querySelectorAll(".opt").forEach(b => b.onclick = () => { if (reveal) return; const j = +b.dataset.j;
+      if (o.set) { r.pick = j; r.r = check(q, j) ? 1 : 0; } else r.sel = j; save(); show(); });
+    if ($("ti")) { $("ti").oninput = e => { if (!o.set) { r.sel = e.target.value.trim() || null; save(); if ($("chk")) $("chk").disabled = !r.sel; } };
+      $("ti").onkeydown = e => { if (e.key === "Enter") { const v = $("ti").value.trim(); if (v === "") return; if (o.set) { r.pick = v; r.r = check(q, v) ? 1 : 0; save(); show(); } else { stop(); commit(v); show(); } } }; kpBind(); }
+    if ($("chk")) $("chk").onclick = () => { const v = pending(); if (v === null) return; stop(); commit(v); show(); };
     if ($("hb")) $("hb").onclick = () => { r.hint = true; save(); show(); };
     if ($("cl")) $("cl").onclick = () => { r.pick = null; r.r = null; save(); show(); };
     $("sv").onclick = () => { S.mark[k] ? delete S.mark[k] : S.mark[k] = 1; save(); show(); };
     $("mr").onclick = () => { if (o.set) { r.mk = 1; jump(Math.min(i + 1, keys.length - 1)); } else { r.mk = r.mk ? 0 : 1; save(); show(); } };
     $("cb").onclick = calcToggle;
+    $("ps").onclick = () => { stop(); paused = true; calcHide(); show(); };
+    if ($("pr")) $("pr").onclick = () => { paused = false; t0 = Date.now(); show(); };
     whyBind(() => show());
     $("view").querySelectorAll(".pal button").forEach(b => b.onclick = () => jump(+b.dataset.j));
     $("pv").onclick = () => jump(i - 1);
-    $("nx").onclick = () => { if (o.set) r.mk = 0; if (!last) jump(i + 1); else { jump(i); finish(); } };
-    $("fin").onclick = () => { if (o.set) { ask = true; show(); } else { stop(); finish(); } };
-    if ($("fy")) { $("fy").onclick = () => { jump(i); finish(); }; $("fk").onclick = () => { ask = false; show(); }; }
+    $("nx").onclick = () => { if (o.set) r.mk = 0; if (!last) jump(i + 1); else { jump(i); if (o.set) { ask = true; show(); } else finish(); } };
+    $("fin").onclick = () => { if (o.set) { jump(i); ask = true; show(); } else { jump(i); finish(); } };
+    if ($("fy")) { $("fy").onclick = () => { stop(); finish(); }; $("fk").onclick = () => { ask = false; show(); }; }
   };
-  const finish = () => {
+  const finish = auto => {
     if (finished) return; finished = true; stopTimer(); calcHide();
     if (o.set) keys.forEach((k, j) => { if (R[j].pick !== null) { record(k, R[j]); run.items.push(item(k, R[j])); } });
     const done = R.filter(r => r.pick !== null), ok = done.filter(r => r.r).length, time = R.reduce((a, r) => a + r.t, 0);
@@ -998,9 +1031,9 @@ function play(keys, o, resume) {
     const res = {total: keys.length, attempted: done.length, correct: ok, score, max: 3 * keys.length, time: Math.round(time)};
     if (o.onDone) o.onDone(res, R);
     Object.assign(run, {done: true, time: res.time, score: res.score, cleared: res.cleared === true});
-    const rec = {id: run.id, title: o.title || "Practice", kind: o.kind || "practice", set: !!o.set, at: Date.now(), lad: o.lad, score, max: res.max, correct: ok, total: keys.length, time: res.time,
+    const rec = {id: run.id, title: o.title || "Practice", kind: o.kind || "practice", set: !!o.set, at: Date.now(), lad: o.lad, score, max: res.max, correct: ok, total: keys.length, time: res.time, auto: auto === true,
       seq: seq.map(([j, s]) => [j, Math.round(s)]), verdict: o.verdict ? o.verdict(res) : "",
-      items: keys.map((k, j) => ({k, pick: R[j].pick, r: R[j].pick === null ? null : R[j].r, t: Math.round(R[j].t), tgt: tgtOf(k)}))};
+      items: keys.map((k, j) => ({k, pick: R[j].pick, r: R[j].pick === null ? null : R[j].r, t: Math.round(R[j].t), tgt: tgtOf(k), mk: R[j].mk ? 1 : 0, h: R[j].hint ? 1 : 0}))};
     S.hist.unshift(rec); S.hist = S.hist.slice(0, 20); S.play = null; save();
     const prev = S.wkr;
     flush().then(() => { if (SES && done.length) { BD = null; refreshMy(); } });
@@ -1060,7 +1093,7 @@ async function boards() {
     h += d < 1 ? `<p class="lead">The Daily 15 has not started yet.</p>` : `<div class="row" style="margin:0 0 12px"><button class="btn alt sm" id="dp" ${d > 1 ? "" : "disabled"} aria-label="Previous day">‹</button><b>Day ${d}${d === BT.day.d ? " · today" : ""}</b><button class="btn alt sm" id="dn" ${d < today ? "" : "disabled"} aria-label="Next day">›</button></div>`
       + boardTable(b, ["Score", "Time"], r => `<td><b>${r[2]}</b></td><td>${fmt(r[3])}</td>`) + `<p class="small">Score out of 45. Ties go to the faster paper. Only papers finished inside the time limit are ranked.</p>`;
   } else if (w === "week") h += boardTable(b, ["Points", "New questions"], r => `<td><b>${r[2]}</b></td><td>${r[3]}</td>`) + `<p class="small">Monday to Sunday. +3 for a correct answer and −1 for a wrong MCQ, on the first time you meet a question anywhere on the site. Repeats earn nothing, so guessing and redoing do not pay.</p>`;
-  else if (w === "acc") h += boardTable(b, ["Accuracy", "New questions"], r => `<td><b>${r[2]}%</b></td><td>${r[3]}</td>`) + `<p class="small">Share of new questions answered correctly this week. You appear here after ${BD.accMin} new questions in the week${b.me ? "" : "; you are at " + BD.my.nf}.</p>`;
+  else if (w === "acc") h += boardTable(b, ["Accuracy", "New questions"], r => `<td><b>${r[2]}%</b></td><td>${r[3]}</td>`) + `<p class="small">Your first try at questions that were new to you this week, across Daily 15, Practice, PYQs and the Ladder. Redoing a question does not change it. You appear here after ${BD.accMin} new questions in the week${b.me ? "" : "; you are at " + BD.my.nf}.</p>`;
   else h += boardTable(b, ["Days in a row", "Points this week"], r => `<td><b>${r[2]}</b></td><td>${r[3]}</td>`) + `<p class="small">Consecutive days with a Daily 15 submitted. Miss a day and the streak restarts.</p>`;
   view(h + `<p class="small">Boards refresh about once a minute. <a href="#" id="br">Refresh now</a></p></div>`); wire();
   $("br").onclick = e => { e.preventDefault(); BD = null; boards(); };
@@ -1069,7 +1102,7 @@ async function boards() {
 // ---------- log ----------
 function log() {
   let h = `<div class="phead"><div><h1>My log</h1><p class="sub">Where you are strong, why you lose marks, and what to redo.</p></div></div>
-   <div class="card"><div class="lbl">Accuracy by chapter and level · practice bank</div><div class="scroll"><table><tr><th class="l">Chapter</th>${[1, 2, 3, 4, 5].map(l => "<th>L" + l + "</th>").join("")}<th>All</th></tr>`;
+   <div class="card"><div class="lbl">Accuracy by chapter and level · practice bank</div><p class="small" style="margin:-4px 0 10px">Each practice-bank question counts once, at your latest result, so redoing a wrong one fixes it here. The accuracy on Home and on the Leaderboard is different: it counts only your <b>first try</b> at questions new to you <b>this week</b>.</p><div class="scroll"><table><tr><th class="l">Chapter</th>${[1, 2, 3, 4, 5].map(l => "<th>L" + l + "</th>").join("")}<th>All</th></tr>`;
   D.ch.forEach(([c, nm]) => { h += `<tr><td class="l"><b>${esc(nm)}</b></td>`; let A = 0, C = 0, N = 0;
     for (let l = 1; l <= 5; l++) { const n = D.grid[c][l - 1], at = PRB.filter(q => q.c === c && q.l === l && S.att["B" + q.n]), ok = at.filter(q => S.att["B" + q.n].r === 1).length; A += at.length; C += ok; N += n;
       h += `<td><span class="hc ${shade(ok, at.length)}">${at.length ? Math.round(100 * ok / at.length) + "%" : "–"}</span><br><span class="small">${at.length}/${n}</span></td>`; }
