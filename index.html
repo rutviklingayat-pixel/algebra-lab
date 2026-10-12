@@ -130,7 +130,7 @@ td.l,th.l{text-align:left}tr.me td{background:var(--orbg);font-weight:900}tr.gap
 /* exam + player: CAT layout */
 .cat{display:grid;grid-template-columns:minmax(0,1fr) 340px;grid-template-areas:"head head" "main pal" "main rest";grid-template-rows:auto auto 1fr;min-height:calc(100vh - 62px)}
 .chead{grid-area:head;background:var(--card);border-bottom:1px solid var(--line);padding:10px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:6}
-.chead .tt{flex:1;min-width:170px}.chead .tt b{display:block;font-size:17px;font-weight:900}.chead .tt small{color:var(--mut);font-size:13px;font-weight:700}
+.chead .tt{flex:1;min-width:170px;overflow:hidden}.chead .tt b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.chead .tt b{display:block;font-size:17px;font-weight:900}.chead .tt small{color:var(--mut);font-size:13px;font-weight:700}
 .timer{display:flex;flex-direction:column;background:var(--navy);color:#fff;border-radius:10px;padding:6px 14px;line-height:1.15;min-width:104px}
 .timer small{font-size:10px;letter-spacing:.08em;color:#b9c4d6;font-weight:700}.timer .clock{font-size:21px;font-weight:900}
 .timer:has(.low){background:var(--bad)}.timer .clock.low{color:#fff}
@@ -277,12 +277,18 @@ const D = {"ch":[["LE","Linear Equations"],["QE","Quadratic Equations"],["PB","P
 const TARGET = {1: 90, 2: 90, 3: 120, 4: 180, 5: 300};
 const LVN = {1: "Easy", 2: "Easy-Moderate", 3: "Moderate", 4: "Moderate-Difficult", 5: "Difficult"};
 const TABS = [["home", "Home"], ["daily", "Daily 15"], ["practice", "Practice"], ["pyq", "CAT PYQs"], ["ladder", "Ladder"], ["boards", "Leaderboards"], ["log", "My log"]];
-const WHY = [["c", "Concept"], ["k", "Calculation"], ["m", "Misread the question"], ["t", "Ran out of time"]];
+const WHY = [["c", "Concept"], ["k", "Calculation"], ["s", "Silly mistake"], ["m", "Misread the question"], ["t", "Ran out of time"]];
 const SK = "ims_alg_lab_session", TH = "ims_alg_lab_theme", NDAILY = 450, NPRAC = 600, NBANK = 1050;
 const P = D.pyq;
 let SES = null, S = null, BT = null, BD = null, BDat = 0, skew = 0, B = [], BK = {}, PRB = [], DB = [];
-let tab = "home", timer = null, flushing = false, booting = false, busy = false, wkHook = null;
-const F = {src: "p", ch: [], lv: [], fam: "", type: "", status: "", shuffle: true, count: 15, mode: "learn", pch: [], pfam: "", pyear: "", pcount: 0};
+let PLAYVIS = null, tab = "home", timer = null, flushing = false, booting = false, busy = false, wkHook = null;
+const F = {src: "p", ch: [], lv: [], fam: [], type: [], status: [], shuffle: true, count: 15, mode: "learn", pch: [], pfam: [], pyear: [], pst: [], pcount: 0};
+const STAT = [["new", "Not yet attempted"], ["wrong", "Got wrong last time"], ["right", "Got right"], ["mark", "Saved to My log"]];
+const stOK = (k, arr) => !arr.length || arr.some(s => s === "new" ? !S.att[k] : s === "wrong" ? !!S.att[k] && S.att[k].r === 0 : s === "right" ? !!S.att[k] && S.att[k].r === 1 : !!S.mark[k]);
+const keep = (arr, ok) => { for (let i = arr.length - 1; i >= 0; i--) if (!ok(arr[i])) arr.splice(i, 1); };
+/** Builds a readable name for a set from the choices that made it, e.g. "CAT PYQs · QE + LOG · 2023, 2024 · 10 Qs". */
+function setName(head, chs, extra, n) { const c = !chs.length ? "All chapters" : chs.length <= 2 ? chs.map(chName).join(" + ") : chs.join(", "); return [head, c].concat(extra.filter(Boolean)).concat([n + " Q" + (n === 1 ? "" : "s")]).join(" · "); }
+const listOf = (a, f, many) => !a.length ? "" : a.length <= 3 ? a.slice().sort().map(f).join(", ") : a.length + " " + many;
 const BF = {which: "daily", scope: "all", day: 0};
 const ICAL = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/></svg>`;
 const IMOON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>`;
@@ -596,7 +602,7 @@ function smartSet() {
   while (keys.length < 10 && more) { more = false; lists.forEach(L => { if (keys.length < 10 && L.length) { keys.push(L.shift()); more = true; } }); }
   return {keys: shuffle(keys), cells: pick.map(x => chName(x.c) + " L" + x.l + (x.acc === null || x.n < 2 ? " (new)" : " (" + Math.round(100 * x.acc) + "%)"))};
 }
-function startSmart() { const s = smartSet(); if (!s.keys.length) { toast("Nothing left to practise in your weak spots. Build your own set instead."); return; } play(s.keys, {title: "Smart set", kind: "practice", sub: "From " + s.cells.join(", ")}); }
+function startSmart() { const s = smartSet(); if (!s.keys.length) { toast("Nothing left to practise in your weak spots. Build your own set instead."); return; } play(s.keys, {title: "Smart set · " + s.cells.map(c => c.replace(/ \(.*\)$/, "")).join(", "), kind: "practice", sub: "From " + s.cells.join(", ")}); }
 
 // ---------- home ----------
 function home() {
@@ -648,7 +654,7 @@ function home() {
   view(`<h1>${hello}, ${esc(first(SES.name))}.</h1><p class="sub" style="margin:0">${st.k === "done" ? "Today's paper is in. Keep the streak going tomorrow." : "What will it be today?"}</p>
    <div class="hgrid"><div class="col">${hero}${stats}${month}${map}</div><div class="col">${prac}${board}${badges}${quick}</div></div>`);
   goWire();
-  $("view").querySelectorAll(".hm button").forEach(b => b.onclick = () => { F.src = "p"; F.ch = [b.dataset.c]; F.lv = [+b.dataset.l]; F.fam = ""; F.status = ""; setTab("practice"); });
+  $("view").querySelectorAll(".hm button").forEach(b => b.onclick = () => { F.src = "p"; F.ch = [b.dataset.c]; F.lv = [+b.dataset.l]; F.fam = []; F.status = []; setTab("practice"); });
   $("smart").onclick = startSmart;
   if ($("qw")) $("qw").onclick = () => play(wrongKeys(), {title: "Redo: wrong last time", kind: "redo"});
   countdown(st.k === "soon" ? st.at : BT.day.closes);
@@ -889,11 +895,10 @@ function chipset(id, items, sel) { return `<div class="chips" id="${id}">` + ite
 function bind(id, arr, cb) { $(id).querySelectorAll("button").forEach(b => b.onclick = () => { const v = isNaN(b.dataset.v) ? b.dataset.v : +b.dataset.v; const i = arr.indexOf(v); i < 0 ? arr.push(v) : arr.splice(i, 1); cb(); }); }
 function one(id, get, set, cb) { $(id).querySelectorAll("button").forEach(b => b.onclick = () => { set(isNaN(b.dataset.v) ? b.dataset.v : +b.dataset.v); cb(); }); }
 function pool() {
-  return (F.src === "d" ? DB : PRB).filter(q => (!F.ch.length || F.ch.includes(q.c)) && (!F.lv.length || F.lv.includes(q.l)) && (!F.fam || q.f === F.fam) && (!F.type || q.t === F.type)
-    && (F.status === "" || (F.status === "new" && !S.att["B" + q.n]) || (F.status === "wrong" && S.att["B" + q.n] && S.att["B" + q.n].r === 0) || (F.status === "mark" && S.mark["B" + q.n])));
+  return (F.src === "d" ? DB : PRB).filter(q => (!F.ch.length || F.ch.includes(q.c)) && (!F.lv.length || F.lv.includes(q.l)) && (!F.fam.length || F.fam.includes(q.f)) && (!F.type.length || F.type.includes(q.t)) && stOK("B" + q.n, F.status));
 }
 function practice() {
-  const fams = Object.entries(D.fam).filter(([k]) => !F.ch.length || F.ch.some(c => D.famch[k] === c));
+  const fams = Object.entries(D.fam).filter(([k]) => !F.ch.length || F.ch.some(c => D.famch[k] === c)); keep(F.fam, k => fams.some(f => f[0] === k));
   const n = pool().length, take = F.count ? Math.min(F.count, n) : n, sm = smartSet();
   let note = "";
   if (F.src === "d" && !DB.length) note = `<div class="fb hint" style="margin:12px 0 0">Past Daily 15 questions appear here the morning after each set closes. Until then, use the practice bank or the <a href="#" id="tp">CAT PYQs</a>.</div>`;
@@ -902,10 +907,9 @@ function practice() {
   <h3>From</h3>${chipset("fq", [["p", "Practice bank · " + PRB.length], ["d", "Past Daily 15 · " + DB.length]], [F.src])}${note}
   <h3>Chapters <span style="font-weight:700;letter-spacing:0;text-transform:none">· none picked means all</span></h3>${chipset("fc", D.ch, F.ch)}
   <h3>Levels</h3>${chipset("fl", [1, 2, 3, 4, 5].map(l => [l, "L" + l + " · " + LVN[l]]), F.lv)}
-  <h3>Filters</h3><div class="row">
-   <select id="ff" aria-label="Question family"><option value="">All question families</option>${fams.map(([k, v]) => `<option value="${k}" ${F.fam === k ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>
-   <select id="ft" aria-label="Question type"><option value="">MCQ and TITA</option><option value="M" ${F.type === "M" ? "selected" : ""}>MCQ only</option><option value="T" ${F.type === "T" ? "selected" : ""}>TITA only</option></select>
-   <select id="fs" aria-label="Status"><option value="">Any status</option><option value="new" ${F.status === "new" ? "selected" : ""}>Not yet attempted</option><option value="wrong" ${F.status === "wrong" ? "selected" : ""}>Got wrong last time</option><option value="mark" ${F.status === "mark" ? "selected" : ""}>Saved to My log</option></select></div>
+  <h3>Question families <span style="font-weight:700;letter-spacing:0;text-transform:none">· pick any · none means all</span></h3>${chipset("ff", fams.map(([k, v]) => [k, esc(v)]), F.fam)}
+  <h3>Type</h3>${chipset("ft", [["M", "MCQ"], ["T", "TITA"]], F.type)}
+  <h3>Status <span style="font-weight:700;letter-spacing:0;text-transform:none">· pick any</span></h3>${chipset("fs", STAT, F.status)}
   <h3>How many</h3>${chipset("fn", [[10, "10"], [15, "15"], [22, "22"], [0, "All that match"]], [F.count])}
   <h3>Mode</h3><div class="mode" id="fm">${[["learn", "Learn", "See the answer and hint after each question"], ["test", "Test", "Timed set, answers at the end, +3 and −1"]].map(([v, t, s]) => `<button class="chip ${F.mode === v ? "on" : ""}" data-v="${v}"><b>${t}</b>${s}</button>`).join("")}</div>
   </div>
@@ -916,10 +920,11 @@ function practice() {
   if ($("tp")) $("tp").onclick = e => { e.preventDefault(); setTab("pyq"); };
   bind("fc", F.ch, practice); bind("fl", F.lv, practice);
   one("fn", 0, v => F.count = v, practice); one("fm", 0, v => F.mode = v, practice); one("fq", 0, v => F.src = v, practice);
-  $("ff").onchange = e => { F.fam = e.target.value; practice(); }; $("ft").onchange = e => { F.type = e.target.value; practice(); }; $("fs").onchange = e => { F.status = e.target.value; practice(); };
+  bind("ff", F.fam, practice); bind("ft", F.type, practice); bind("fs", F.status, practice);
   $("smart").onclick = startSmart;
   $("go").onclick = () => { let L = pool().map(q => "B" + q.n); if (F.count || F.mode === "test") L = shuffle(L); if (F.count) L = L.slice(0, F.count);
-    play(L, F.mode === "test" ? {title: "Practice test", set: true, hide: true, kind: "set"} : {title: "Practice", hide: !!F.count, kind: "practice"}); };
+    const nm = setName(F.mode === "test" ? "Practice test" : "Practice", F.ch, [F.src === "d" ? "Past Daily 15" : "", listOf(F.lv, l => "L" + l, "levels"), listOf(F.fam, k => k, "families"), F.type.length === 1 ? (F.type[0] === "M" ? "MCQ" : "TITA") : "", F.status.map(x => STAT.find(z => z[0] === x)[1].toLowerCase()).join(" or ")], L.length);
+    play(L, F.mode === "test" ? {title: nm, set: true, hide: true, kind: "set"} : {title: nm, hide: !!F.count, kind: "practice"}); };
 }
 // ---------- the player (practice, PYQs, ladder, redo), laid out like the exam ----------
 function check(q, val) {
@@ -946,6 +951,7 @@ function play(keys, o, resume) {
   const R = st ? st.R : keys.map(() => ({pick: null, r: null, t: 0, hint: false, vis: 0, mk: 0, sel: null}));
   const seq = st ? st.seq : [], limit = keys.reduce((a, k) => a + tgtOf(k), 0);
   let i = st ? st.i : 0, t0 = Date.now(), finished = false, ask = false, paused = false;
+  PLAYVIS = hidden => { if (finished || paused) return; if (hidden) stop(); else t0 = Date.now(); };
   S.play = {keys, o: {title: o.title, set: !!o.set, hide: !!o.hide, kind: o.kind, tag: o.tag, lad: o.lad}, R, seq, i, runId: run.id, back}; save();
   $("tabs").innerHTML = ""; wide(true, true);
   const used = () => R.reduce((a, r) => a + r.t, 0) + (paused ? 0 : (Date.now() - t0) / 1000);
@@ -1002,8 +1008,8 @@ function play(keys, o, resume) {
     timer = setInterval(() => { if (paused) return; const el = $("ck"); if (!el) return;
       if (o.set) { const s = limit - used(); el.textContent = fmt(s); el.className = "clock" + (s < 120 ? " low" : ""); if ($("tbi")) $("tbi").style.width = Math.min(100, 100 * used() / limit) + "%"; if (s <= 0) { stop(); finish(true); } return; }
       if (R[i].r !== null) return; const s = R[i].t + (Date.now() - t0) / 1000; el.textContent = fmt(s); el.className = "clock" + (s > tgt ? " over" : ""); }, 500);
-    const jump = j => { const v = pending(); if (v !== null) { if (o.set) { if (String(v) !== String(r.pick)) { r.pick = v; r.r = check(q, v) ? 1 : 0; } } else commit(v); }
-      stop(); i = j; ask = false; show(); window.scrollTo(0, 0); };
+    const jump = j => { stop(); const v = pending(); if (v !== null) { if (o.set) { if (String(v) !== String(r.pick)) { r.pick = v; r.r = check(q, v) ? 1 : 0; } } else commit(v); }
+      i = j; t0 = Date.now(); ask = false; show(); window.scrollTo(0, 0); };
     $("view").querySelectorAll(".opt").forEach(b => b.onclick = () => { if (reveal) return; const j = +b.dataset.j;
       if (o.set) { r.pick = j; r.r = check(q, j) ? 1 : 0; } else r.sel = j; save(); show(); });
     if ($("ti")) { $("ti").oninput = e => { if (!o.set) { r.sel = e.target.value.trim() || null; save(); if ($("chk")) $("chk").disabled = !r.sel; } };
@@ -1024,7 +1030,7 @@ function play(keys, o, resume) {
     if ($("fy")) { $("fy").onclick = () => { stop(); finish(); }; $("fk").onclick = () => { ask = false; show(); }; }
   };
   const finish = auto => {
-    if (finished) return; finished = true; stopTimer(); calcHide();
+    if (finished) return; finished = true; PLAYVIS = null; stopTimer(); calcHide();
     if (o.set) keys.forEach((k, j) => { if (R[j].pick !== null) { record(k, R[j]); run.items.push(item(k, R[j])); } });
     const done = R.filter(r => r.pick !== null), ok = done.filter(r => r.r).length, time = R.reduce((a, r) => a + r.t, 0);
     let score = 0; keys.forEach((k, j) => { const r = R[j], q = Q(k); if (r.pick === null) return; score += r.r ? 3 : (q.t === "M" ? -1 : 0); });
@@ -1057,21 +1063,22 @@ function ladder() {
 // ---------- PYQs ----------
 function pyq() {
   const years = [...new Set(P.map(q => q.yr))].sort();
-  const fams = Object.entries(D.fam).filter(([k]) => P.some(q => q.f === k) && (!F.pch.length || F.pch.includes(D.famch[k])));
-  const L = P.filter(q => (!F.pch.length || F.pch.includes(q.c)) && (!F.pfam || q.f === F.pfam) && (!F.pyear || q.yr === +F.pyear));
+  const fams = Object.entries(D.fam).filter(([k]) => P.some(q => q.f === k) && (!F.pch.length || F.pch.includes(D.famch[k]))); keep(F.pfam, k => fams.some(f => f[0] === k));
+  const L = P.filter(q => (!F.pch.length || F.pch.includes(q.c)) && (!F.pfam.length || F.pfam.includes(q.f)) && (!F.pyear.length || F.pyear.includes(q.yr)) && stOK("P" + q.n, F.pst));
   const take = F.pcount ? Math.min(F.pcount, L.length) : L.length;
   const done = P.filter(q => S.att["P" + q.n]).length;
   view(`<div class="phead"><div><h1>CAT PYQs, 2017 to 2024</h1><p class="sub" style="margin:0">${P.length} actual CAT algebra questions, sorted into the same chapters and question families as the practice bank.</p></div></div>
   <div class="pgrid"><div class="card">
   <h3>Chapters <span style="font-weight:700;letter-spacing:0;text-transform:none">· none picked means all</span></h3>${chipset("pc", D.ch, F.pch)}
-  <h3>Filters</h3><div class="row"><select id="pf" aria-label="Question family"><option value="">All question families</option>${fams.map(([k, v]) => `<option value="${k}" ${F.pfam === k ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>
-  <select id="py" aria-label="Year"><option value="">All years</option>${years.map(y => `<option ${String(F.pyear) === String(y) ? "selected" : ""}>${y}</option>`).join("")}</select></div>
+  <h3>Years <span style="font-weight:700;letter-spacing:0;text-transform:none">· pick any · none means all</span></h3>${chipset("py", years.map(y => [y, "CAT " + y]), F.pyear)}
+  <h3>Question families <span style="font-weight:700;letter-spacing:0;text-transform:none">· pick any</span></h3>${chipset("pf", fams.map(([k, v]) => [k, esc(v)]), F.pfam)}
+  <h3>Status <span style="font-weight:700;letter-spacing:0;text-transform:none">· pick any</span></h3>${chipset("pst", STAT, F.pst)}
   <h3>How many</h3>${chipset("pn", [[10, "10"], [22, "22"], [0, "All that match"]], [F.pcount])}</div>
   <aside class="card sum"><div class="lbl">Your set</div><div class="big">${take}</div><p class="small" style="margin:4px 0 6px">${L.length} match your choices.</p><p class="small" style="margin:0 0 16px">You have attempted ${done} of ${P.length}.</p>
    <button class="btn big wide" id="pg" ${L.length ? "" : "disabled"}>${L.length ? "Start " + take + " question" + (take === 1 ? "" : "s") : "No questions match"}</button></aside></div>`);
   bind("pc", F.pch, pyq); one("pn", 0, v => F.pcount = v, pyq);
-  $("pf").onchange = e => { F.pfam = e.target.value; pyq(); }; $("py").onchange = e => { F.pyear = e.target.value; pyq(); };
-  $("pg").onclick = () => { let K = L.map(q => "P" + q.n); if (F.pcount) K = shuffle(K).slice(0, F.pcount); play(K, {title: "CAT PYQs", kind: "pyq"}); };
+  bind("pf", F.pfam, pyq); bind("py", F.pyear, pyq); bind("pst", F.pst, pyq);
+  $("pg").onclick = () => { let K = L.map(q => "P" + q.n); if (F.pcount) K = shuffle(K).slice(0, F.pcount); play(K, {title: setName("CAT PYQs", F.pch, [listOf(F.pyear, y => y, "years"), listOf(F.pfam, k => k, "families"), F.pst.map(x => STAT.find(z => z[0] === x)[1].toLowerCase()).join(" or ")], K.length), kind: "pyq"}); };
 }
 // ---------- leaderboards ----------
 async function boards() {
@@ -1117,8 +1124,8 @@ function log() {
   h += `<div class="hgrid" style="margin-top:18px"><div class="card"><div class="chd"><span class="lbl">Why you lose marks</span><span class="small">${wt} wrong answer${wt === 1 ? "" : "s"} tagged</span></div>`;
   if (wt) { const top = WHY.map(([c, n]) => [n, wv.filter(v => v === c).length]).sort((a, b) => b[1] - a[1]);
     h += top.map(([n, k]) => `<div class="wbar"><span>${n}</span><span><i style="width:${100 * k / wt}%"></i></span><b>${Math.round(100 * k / wt)}%</b></div>`).join("")
-      + `<p class="small" style="margin:10px 0 0"><b style="color:var(--ink)">${top[0][0]}</b> costs you the most marks. ${{Concept: "Go back to the chapter notes before the next set.", Calculation: "Write one more line of working; it is cheaper than a −1.", "Misread the question": "Underline what is asked before you solve.", "Ran out of time": "Skip sooner: if it is not moving in a minute, mark it and move on."}[top[0][0]]}</p>`; }
-  else h += `<p class="small" style="margin:0">After a wrong answer, tap what went wrong: concept, calculation, misread or time. After a few sets this shows the pattern behind your lost marks.</p>`;
+      + `<p class="small" style="margin:10px 0 0"><b style="color:var(--ink)">${top[0][0]}</b> costs you the most marks. ${{Concept: "Go back to the chapter notes before the next set.", Calculation: "Write one more line of working; it is cheaper than a −1.", "Silly mistake": "Before you lock an answer, re-read your last line and the option you picked.", "Misread the question": "Underline what is asked before you solve.", "Ran out of time": "Skip sooner: if it is not moving in a minute, mark it and move on."}[top[0][0]]}</p>`; }
+  else h += `<p class="small" style="margin:0">After a wrong answer, tap what went wrong: concept, calculation, silly mistake, misread or time. After a few sets this shows the pattern behind your lost marks.</p>`;
   h += `</div><div class="card"><div class="chd"><span class="lbl">Recent sets</span><span class="small">on this device</span></div><div class="hist">`;
   const hs = S.hist.filter(x => x.daily ? S.daily[x.daily] && S.daily[x.daily].rev : x.items);
   h += hs.length ? hs.slice(0, 8).map((x, j) => { const sc = x.daily ? S.daily[x.daily].score + "/45" : x.set ? x.score + "/" + x.max : x.correct + "/" + x.total;
@@ -1139,6 +1146,8 @@ function log() {
   if (!/^https?:\/\//.test(API)) { view(`<div class="center card"><h2>Almost there</h2><p class="lead">This site is not connected to its Google Sheet yet. Open <b>config.js</b> (it sits next to index.html) and paste the web-app URL from Apps Script between the quotes.</p></div>`); return; }
   SES = lsGet(SK);
   if (SES && SES.token) { loadS(SES.sid); $("who").innerHTML = `<span class="av">${esc(ini(SES.name))}</span>`; bootUp(); } else { SES = null; loginScreen(); }
+  document.addEventListener("visibilitychange", () => { if (PLAYVIS) PLAYVIS(document.hidden); });
+  window.addEventListener("pagehide", () => { if (PLAYVIS) PLAYVIS(true); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && SES && BT && !busy && (dstate().k === "roll" || Date.now() - (BT._at || 0) > 600000)) { BT._at = Date.now(); bootUp(); } });
 })();
 </script></body></html>
